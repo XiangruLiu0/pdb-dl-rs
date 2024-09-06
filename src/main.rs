@@ -4,7 +4,7 @@ use std::{path::PathBuf, process::exit};
 
 #[derive(Parser)]
 struct Args {
-    #[arg(short, long)]
+    #[arg(short = 'i', long)]
     pe: PathBuf,
     #[arg(short, long)]
     out: PathBuf,
