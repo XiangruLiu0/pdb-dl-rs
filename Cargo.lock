@@ -726,7 +726,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pdb-downloader"
+name = "pdb-dl"
 version = "0.1.0"
 dependencies = [
  "clap",

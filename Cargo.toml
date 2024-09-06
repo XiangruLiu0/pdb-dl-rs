@@ -1,10 +1,10 @@
 [package]
-name = "pdb-downloader"
+name = "pdb-dl"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "pdb-downloader"
+name = "pdb-dl"
 path = "src/main.rs"
 
 [lib]

@@ -1,5 +1,5 @@
 use goblin::Object;
-use reqwest::Url;
+use reqwest::{Client, Url};
 use std::{
     ffi::CStr,
     path::{Path, PathBuf},
@@ -60,27 +60,30 @@ impl PdbDownloader {
             age,
             out_path,
         } = self;
+        let client = Client::new();
+
         let url = Url::parse(MICROSOFT_SYMBOL_STORE_URL).unwrap();
         let url = url
             .join(&format!("{filename}/{guid}{age}/{filename}"))
             .unwrap();
         info!(url = url.to_string(), "Trying to download PDB");
-        let response = reqwest::get(url).await.inspect_err(|e| {
+        let mut response = client.get(url).send().await.inspect_err(|e| {
             error!(?e, "Failed to download PDB");
         })?;
-        if response.status() != reqwest::StatusCode::OK {
+        if !response.status().is_success() {
             return Err(PdbDownloadError::Http(response.status().as_u16()));
         }
 
         let mut file = tokio::fs::File::create(out_path).await.inspect_err(|e| {
             error!(?e, path = ?out_path.display(), "Failed to create PDB file");
         })?;
-        let bytes = response.bytes().await.inspect_err(|e| {
-            error!(?e, "Failed to read PDB bytes");
-        })?;
-        file.write_all(&bytes).await.inspect_err(|e| {
-            error!(?e, path = ?out_path.display(), "Failed to write PDB bytes");
-        })?;
+        while let Some(chunk) = response.chunk().await.inspect_err(|e| {
+            error!(?e, "Failed to read bytes during download");
+        })? {
+            file.write_all(&chunk).await.inspect_err(|e| {
+                error!(?e, path = ?out_path.display(), "Failed to write PDB bytes");
+            })?;
+        }
 
         Ok(())
     }
