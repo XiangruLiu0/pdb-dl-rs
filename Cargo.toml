@@ -1,0 +1,22 @@
+[package]
+name = "pdb-downloader"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "pdb-downloader"
+path = "src/main.rs"
+
+[lib]
+name = "pdb_downloader"
+path = "src/lib.rs"
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+goblin = "0.8"
+hex = "0.4"
+reqwest = { version = "0.12" }
+thiserror = "1.0"
+tokio = { version = "1.40", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
