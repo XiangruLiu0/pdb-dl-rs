@@ -7,7 +7,7 @@ Rust crate to download PDB by parsing PE file.
 You can use it as a library in your project.
 
 ```rust
-use pdb_dl::{PdbDownloader};
+use pdb_dl::PdbDownloader;
 
 #[tokio::main]
 async fn main() {
