@@ -1,5 +1,5 @@
 use clap::Parser;
-use pdb_downloader::PdbDownloader;
+use pdb_dl::PdbDownloader;
 use std::{path::PathBuf, process::exit};
 
 #[derive(Parser)]

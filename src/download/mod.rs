@@ -1,10 +1,9 @@
 use goblin::Object;
-use reqwest::{Client, Url};
+use reqwest::Url;
 use std::{
     ffi::CStr,
     path::{Path, PathBuf},
 };
-use tokio::io::AsyncWriteExt;
 use tracing::{error, info};
 
 use crate::{data::*, error::*};
@@ -53,37 +52,66 @@ impl PdbDownloader {
         })
     }
 
-    pub async fn download(&self) -> PdbDownloadResult<()> {
+    fn url(&self) -> Url {
         let Self {
             guid,
             filename,
             age,
-            out_path,
+            ..
         } = self;
-        let client = Client::new();
-
         let url = Url::parse(MICROSOFT_SYMBOL_STORE_URL).unwrap();
         let url = url
             .join(&format!("{filename}/{guid}{age}/{filename}"))
             .unwrap();
+        url
+    }
+
+    #[cfg(feature = "async")]
+    pub async fn download(&self) -> PdbDownloadResult<()> {
+        use tokio::io::AsyncWriteExt;
+
+        let url = self.url();
         info!(url = url.to_string(), "Trying to download PDB");
-        let mut response = client.get(url).send().await.inspect_err(|e| {
+        let mut response = reqwest::get(url).await.inspect_err(|e| {
             error!(?e, "Failed to download PDB");
         })?;
         if !response.status().is_success() {
             return Err(PdbDownloadError::Http(response.status().as_u16()));
         }
 
-        let mut file = tokio::fs::File::create(out_path).await.inspect_err(|e| {
-            error!(?e, path = ?out_path.display(), "Failed to create PDB file");
-        })?;
+        let mut file = tokio::fs::File::create(&self.out_path)
+            .await
+            .inspect_err(|e| {
+                error!(?e, path = ?self.out_path.display(), "Failed to create PDB file");
+            })?;
         while let Some(chunk) = response.chunk().await.inspect_err(|e| {
             error!(?e, "Failed to read bytes during download");
         })? {
             file.write_all(&chunk).await.inspect_err(|e| {
-                error!(?e, path = ?out_path.display(), "Failed to write PDB bytes");
+                error!(?e, path = ?self.out_path.display(), "Failed to write PDB bytes");
             })?;
         }
+
+        Ok(())
+    }
+
+    #[cfg(feature = "blocking")]
+    pub fn download_blocking(&self) -> PdbDownloadResult<()> {
+        let url = self.url();
+        info!(url = url.to_string(), "Trying to download PDB");
+        let mut response = reqwest::blocking::get(url).inspect_err(|e| {
+            error!(?e, "Failed to download PDB");
+        })?;
+        if !response.status().is_success() {
+            return Err(PdbDownloadError::Http(response.status().as_u16()));
+        }
+
+        let mut file = std::fs::File::create(&self.out_path).inspect_err(|e| {
+            error!(?e, path = ?self.out_path.display(), "Failed to create PDB file");
+        })?;
+        response.copy_to(&mut file).inspect_err(|e| {
+            error!(?e, "Failed to read bytes during download");
+        })?;
 
         Ok(())
     }
@@ -91,15 +119,34 @@ impl PdbDownloader {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
+    #[cfg(feature = "async")]
     #[tokio::test]
     async fn test_download() {
+        use super::*;
+
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let pe = root.join("tests/ntoskrnl.exe");
-        let out_path = root.join("tests/ntoskrnl.pdb");
+        let test_bin_name = "ntoskrnl.exe";
+        let test_pdb_name = format!("{}-async.pdb", test_bin_name);
+        let pe = root.join("tests").join(test_bin_name);
+        let out_path = root.join("tests").join(test_pdb_name);
         let downloader = PdbDownloader::new(pe, &out_path).unwrap();
         downloader.download().await.unwrap();
+        // delete the file after the test
+        std::fs::remove_file(out_path).unwrap();
+    }
+
+    #[cfg(feature = "blocking")]
+    #[test]
+    fn test_download_blocking() {
+        use super::*;
+
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let test_bin_name = "ntoskrnl.exe";
+        let test_pdb_name = format!("{}-blocking.pdb", test_bin_name);
+        let pe = root.join("tests").join(test_bin_name);
+        let out_path = root.join("tests").join(test_pdb_name);
+        let downloader = PdbDownloader::new(pe, &out_path).unwrap();
+        downloader.download_blocking().unwrap();
         // delete the file after the test
         std::fs::remove_file(out_path).unwrap();
     }

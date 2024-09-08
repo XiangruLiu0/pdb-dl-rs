@@ -6,10 +6,17 @@ edition = "2021"
 [[bin]]
 name = "pdb-dl"
 path = "src/main.rs"
+required-features = ["async"]
 
 [lib]
 name = "pdb_dl"
 path = "src/lib.rs"
+
+[features]
+default = ["async"]
+all = ["async", "blocking"]
+async = ["tokio"]
+blocking = ["reqwest/blocking"]
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
@@ -17,6 +24,6 @@ goblin = "0.8"
 hex = "0.4"
 reqwest = { version = "0.12" }
 thiserror = "1.0"
-tokio = { version = "1.40", features = ["full"] }
+tokio = { version = "1.40", features = ["full"], optional = true }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
