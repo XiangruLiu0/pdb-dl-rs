@@ -8,7 +8,7 @@ name = "pdb-dl"
 path = "src/main.rs"
 
 [lib]
-name = "pdb_downloader"
+name = "pdb-dl"
 path = "src/lib.rs"
 
 [dependencies]
